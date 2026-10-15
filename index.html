@@ -209,6 +209,7 @@ ol.sol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;fon
           <input type="text" id="jc" maxlength="4" inputmode="numeric" placeholder="e.g. 4821" autocomplete="off">
         </label>
         <button class="btn ghost" id="join" disabled>Join case</button>
+        <div class="note" id="jcmsg" aria-live="polite"></div>
         <div class="list" id="open"></div>
       </div>
     </div>
@@ -221,6 +222,7 @@ ol.sol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;fon
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script>
 (()=>{
 // ---------- data ----------
@@ -549,24 +551,71 @@ function onSync(msg){
  if(room)room.presence({hs:true}).catch(()=>{});
  renderAll();
 }
+// ---------- peer-to-peer co-op (used outside Claude, e.g. on GitHub Pages) ----------
+let iCreated=false;
+function makeP2PRoom(code,create){return new Promise((resolve,reject)=>{
+ const hubId='deadcalm-v1-'+code;
+ const myId=create?hubId:hubId+'-z'+Math.random().toString(36).slice(2,10);
+ let peer;try{peer=new Peer(myId,{debug:0});}catch(e){reject(e);return;}
+ const R={me:myId,pres:{},all:new Map(),conns:new Map(),hubConn:null,ev:{},pl:[],snap:[],key:'',ok:false};
+ const mk=()=>{const a=[...R.all.entries()].map(([id,p])=>({peer:id,presence:p||{},sameTab:id===R.me,isMe:id===R.me,by:null,kind:'viewer',guest:false,updatedAt:0}));a.sort((x,y)=>x.peer<y.peer?-1:x.peer>y.peer?1:0);return a;};
+ const update=prev=>{R.snap=mk();const k=R.snap.map(p=>p.peer+':'+(p.presence.n||'')+':'+(p.presence.c||'')+':'+(p.presence.hs?1:0)).join('|');if(k===R.key)return;R.key=k;
+  const pid=new Set(prev.map(p=>p.peer)),nid=new Set(R.snap.map(p=>p.peer));const ch={peers:R.snap,joined:R.snap.filter(p=>!pid.has(p.peer)),left:prev.filter(p=>!nid.has(p.peer)),updated:R.snap.filter(p=>pid.has(p.peer))};R.pl.forEach(f=>{try{f(ch);}catch(e){}});};
+ const deliver=(topic,data,from)=>{(R.ev[topic]||[]).slice().forEach(f=>{try{f({topic,data,peer:from,isMe:from===R.me,sameTab:from===R.me,by:null,kind:'viewer',guest:false});}catch(e){}});};
+ let bpT=null;const schedPeers=()=>{if(bpT)return;bpT=setTimeout(()=>{bpT=null;const list=[...R.all.entries()];R.conns.forEach(c=>{if(c.open)try{c.send({t:'peers',list});}catch(e){}});},90);};
+ const api={
+  emit(topic,data){const m={t:'ev',topic,data,from:R.me};if(create){deliver(topic,data,R.me);R.conns.forEach(c=>{if(c.open)try{c.send(m);}catch(e){}});}else if(R.hubConn&&R.hubConn.open){try{R.hubConn.send(m);}catch(e){}deliver(topic,data,R.me);}return Promise.resolve();},
+  on(topic,fn){(R.ev[topic]=R.ev[topic]||[]).push(fn);return ()=>{R.ev[topic]=(R.ev[topic]||[]).filter(x=>x!==fn);};},
+  presence(patch){Object.entries(patch||{}).forEach(([k,v])=>{if(v===null)delete R.pres[k];else R.pres[k]=v;});const prev=R.snap;R.all.set(R.me,{...R.pres});update(prev);
+   if(create)schedPeers();else if(R.hubConn&&R.hubConn.open){try{R.hubConn.send({t:'pr',p:R.pres});}catch(e){}}return Promise.resolve();},
+  peers(){return R.snap;},
+  onPeers(fn){R.pl.push(fn);setTimeout(()=>{try{fn({peers:R.snap,joined:R.snap,left:[],updated:[]});}catch(e){}},0);return ()=>{R.pl=R.pl.filter(x=>x!==fn);};},
+  connected(){return R.ok;},
+  leave(){try{peer.destroy();}catch(e){}return Promise.resolve();},
+  p2p:true};
+ peer.on('open',()=>{R.ok=true;R.all.set(R.me,{});R.snap=mk();
+  if(create){resolve(api);return;}
+  const c=peer.connect(hubId,{reliable:true});R.hubConn=c;let opened=false;
+  const fail=setTimeout(()=>{if(!opened){try{peer.destroy();}catch(e){}reject(new Error('not-found'));}},9000);
+  c.on('open',()=>{opened=true;clearTimeout(fail);try{c.send({t:'pr',p:R.pres});}catch(e){}resolve(api);});
+  c.on('data',m=>{if(!m||typeof m!=='object')return;if(m.t==='ev'&&m.from!==R.me)deliver(m.topic,m.data,m.from);else if(m.t==='peers'&&Array.isArray(m.list)){const prev=R.snap;R.all=new Map(m.list.filter(e=>Array.isArray(e)&&typeof e[0]==='string'));R.all.set(R.me,{...R.pres});update(prev);}});
+  c.on('close',()=>{const prev=R.snap;R.all=new Map([[R.me,{...R.pres}]]);update(prev);if(typeof onP2PLost==='function')onP2PLost();});});
+ if(create)peer.on('connection',c=>{
+  c.on('open',()=>{R.conns.set(c.peer,c);schedPeers();});
+  c.on('data',m=>{if(!m||typeof m!=='object')return;
+   if(m.t==='pr'){const prev=R.snap;R.all.set(c.peer,(m.p&&typeof m.p==='object')?m.p:{});update(prev);schedPeers();}
+   else if(m.t==='ev'&&typeof m.topic==='string'){m.from=c.peer;deliver(m.topic,m.data,c.peer);R.conns.forEach((cc,id)=>{if(id!==c.peer&&cc.open)try{cc.send(m);}catch(e){}});}});
+  c.on('close',()=>{R.conns.delete(c.peer);const prev=R.snap;R.all.delete(c.peer);update(prev);schedPeers();});});
+ peer.on('error',e=>{if(!R.ok||(e&&e.type==='peer-unavailable'&&!create))reject(e);});
+});}
+function onP2PLost(){const n=$('say');n.textContent='Lost the connection to the case host. You can keep investigating on your own.';n.hidden=false;setTimeout(()=>{n.hidden=true;},6000);}
+let joining=false;
 async function ensureRoom(){
- if(!lobby||!code||room)return;
- try{room=await lobby.join('case-'+code);}catch(e){room=null;renderAll();return;}
+ if(!code||room||joining)return;
+ if(lobby){try{room=await lobby.join('case-'+code);}catch(e){room=null;renderAll();return;}}
+ else if(window.Peer&&!window.claude){joining=true;
+  for(let tries=0;tries<4&&!room;tries++){try{room=await makeP2PRoom(code,iCreated);}catch(e){
+    if(iCreated&&e&&e.type==='unavailable-id'){code=String(1000+Math.floor(Math.random()*9000));continue;}
+    joining=false;room=null;
+    if(!iCreated){$('start').hidden=false;$('jcmsg').textContent=`Couldn\u2019t reach case ${code}. Check the number, and that the host still has the game open.`;code=null;}
+    renderAll();return;}}
+  joining=false;if(!room){renderAll();return;}$('jcmsg').textContent='';}
+ else return;
  room.on('sync',onSync);
  room.on('act',m=>{if(!m.sameTab&&amHost())applyAct(m.data,m.peer);});
  room.on('chat',m=>{const d=m.data||{};chatLog.push({n:String(d.n||'Someone').slice(0,18),t:String(d.t||'').slice(0,200),c:String(d.c||'#999').slice(0,9)});if(chatLog.length>40)chatLog.shift();if(tab==='crew')renderPanel();else markTabs();});
  room.onPeers(ch=>{if(ch.joined.length&&amHost())broadcast();if(ch.left.length&&amHost()){checkWarrant();broadcast();}renderHeader();if(tab==='crew'||tab==='arrest')renderPanel();});
  room.presence({n:me.name,c:me.color,x:pos.x,y:pos.y,l:plev,hs:!!G}).catch(()=>{});
- lobby.presence({n:me.name,open:code}).catch(()=>{});
+ if(lobby)lobby.presence({n:me.name,open:code}).catch(()=>{});
  setInterval(()=>{if(amHost())broadcast();},3000);
  renderAll();
 }
 (async()=>{
  try{if(window.claude&&window.claude.use)lobby=await window.claude.use('room');}catch(e){lobby=null;}
- net=!!lobby;
- $('netnote').textContent=net?'Co-op ready. Friends can join with the case number shown in the header.':'Co-op isn’t available in this view, so you’ll play solo.';
+ net=!!lobby||(!!window.Peer&&!window.claude);
+ $('netnote').textContent=net?'Co-op ready. Friends open this same page and join with the case number shown in the header.':'Co-op isn’t available here, so you’ll play solo.';
  $('join').disabled=!net;
- if(net){lobby.onPeers(renderOpen);lobby.presence({n:me.name||'Investigator',open:code}).catch(()=>{});ensureRoom();}
+ if(lobby){lobby.onPeers(renderOpen);lobby.presence({n:me.name||'Investigator',open:code}).catch(()=>{});ensureRoom();}
 })();
 function renderOpen(){
  if(!lobby)return;const el=$('open');
@@ -580,8 +629,8 @@ function renderOpen(){
 $('nm').value=me.name;
 $('diff').onclick=e=>{const b=e.target.closest('button');if(!b)return;diff=+b.dataset.d;[...$('diff').children].forEach(x=>x.setAttribute('aria-pressed',x===b));};
 function setName(){me.name=($('nm').value.trim()||'Inspector').slice(0,18);try{localStorage.setItem('dc-name',me.name);}catch(e){}}
-$('begin').onclick=()=>{audio();if(!muted)startMusic();setName();code=String(1000+Math.floor(Math.random()*9000));adopt(newGame(diff,1));deadline=Date.now()+DUR[diff]*1000;$('start').hidden=true;renderAll();ensureRoom();};
-function joinCase(){const c=$('jc').value.trim();if(!/^\d{4}$/.test(c)){$('jc').focus();return;}audio();if(!muted)startMusic();setName();code=c;G=null;C=null;$('start').hidden=true;renderAll();ensureRoom();}
+$('begin').onclick=()=>{audio();if(!muted)startMusic();setName();code=String(1000+Math.floor(Math.random()*9000));iCreated=true;adopt(newGame(diff,1));deadline=Date.now()+DUR[diff]*1000;$('start').hidden=true;renderAll();ensureRoom();};
+function joinCase(){const c=$('jc').value.trim();if(!/^\d{4}$/.test(c)){$('jc').focus();return;}audio();if(!muted)startMusic();setName();iCreated=false;$('jcmsg').textContent='Connecting\u2026';code=c;G=null;C=null;$('start').hidden=true;renderAll();ensureRoom();}
 $('join').onclick=joinCase;
 
 function renderEnd(){
