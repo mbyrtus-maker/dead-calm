@@ -80,7 +80,7 @@ main:fullscreen .pbody{max-height:calc(100vh - 70px)}
 .maphint{font-size:.85rem;color:var(--muted);margin-top:6px}
 .panel{background:var(--card);border:1px solid var(--line);border-radius:4px;min-width:0}
 .tabs{display:flex;border-bottom:1px solid var(--line)}
-.tabs button{flex:1;background:none;border:0;padding:10px 4px;font-size:.78rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid transparent}
+.tabs button{flex:1 1 auto;background:none;border:0;padding:10px 1px;font-size:.68rem;letter-spacing:.02em;min-width:0;overflow:hidden;white-space:nowrap;text-transform:uppercase;color:var(--muted);border-bottom:2px solid transparent}
 .tabs button[aria-selected="true"]{color:var(--lamp);border-bottom-color:var(--brass)}
 .tabs .badge{display:inline-block;min-width:16px;padding:0 4px;margin-left:3px;border-radius:8px;background:var(--blood);color:#fff;font-size:.7rem;letter-spacing:0}
 .pbody{padding:14px;display:flex;flex-direction:column;gap:14px;max-height:calc(100vh - 150px);overflow-y:auto}
@@ -169,13 +169,14 @@ ol.sol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;fon
         <div class="lockhint" id="lockhint" hidden>Click to look around</div>
         <div class="lockhint" id="no3d" hidden>3D isn’t available in this browser. Use the deck plan in the corner to move.</div>
       </div>
-      <div class="maphint" id="ctlhint">Click the view to look with the mouse. WASD to walk, Shift to hurry, E to talk or examine, F to search a room, Esc to free the cursor. Click the deck plan to walk somewhere automatically.</div>
+      <div class="maphint" id="ctlhint">Click the view to look with the mouse. WASD to walk, Shift to hurry, E to talk or examine, F to search a room. Right-click (or Esc) frees the cursor so you can use the casebook, notes and other tabs. Click the deck plan to walk somewhere automatically.</div>
     </section>
     <aside class="panel">
       <div class="tabs" role="tablist" id="tabs">
         <button data-t="here" aria-selected="true">Here</button>
-        <button data-t="notes" aria-selected="false">Casebook</button>
+        <button data-t="notes" aria-selected="false">Case</button>
         <button data-t="sus" aria-selected="false">Suspects</button>
+        <button data-t="journal" aria-selected="false">Notes</button>
         <button data-t="crew" aria-selected="false">Crew</button>
         <button data-t="arrest" aria-selected="false">Arrest</button>
       </div>
@@ -511,7 +512,7 @@ function newGame(d,ep){const seed=(Math.random()*2**31)|0;return {ep:ep||1,seed,
 function placeAtBody(){const b=C.objs.find(o=>o.kind==='body');if(!b)return;const r=roomById[b.room];if(!r)return;plev=r.level;let best=null,bd=1e9;
  for(let y=r.y0;y<=r.y1;y++)for(let x=r.x0;x<=r.x1;x++){const cx=x+.5,cy=y+.5,d=Math.hypot(cx-b.pos[0],cy-b.pos[1]);if(d<1.4)continue;const sc=Math.abs(d-1.8);if(sc<bd){bd=sc;best=[cx,cy];}}
  if(best){pos={x:best[0],y:best[1]};yaw=Math.atan2(-(b.pos[0]-best[0]),-(b.pos[1]-best[1]));pitch=-.35;}lastRoom=null;if(typeof renderer!=='undefined'&&renderer&&typeof setLevelLights==='function')setLevelLights(plev);}
-function adopt(g){if(!C||C.seed!==g.seed){C=genCase(g.seed);buildRoutes(C);pos={x:24.5,y:6.5};plev=1;st=null;placeAtBody();if(typeof setLevelLights==='function'&&renderer)setLevelLights(1);path=[];talk=null;$('end').hidden=true;}G=g;}
+function adopt(g){if(!C||C.seed!==g.seed){C=genCase(g.seed);buildRoutes(C);heard=[];pos={x:24.5,y:6.5};plev=1;st=null;placeAtBody();if(typeof setLevelLights==='function'&&renderer)setLevelLights(1);path=[];talk=null;$('end').hidden=true;}G=g;}
 
 // ---------- networking ----------
 function myPeer(){if(!room)return null;const p=room.peers().find(p=>p.sameTab);return p?p.peer:null;}
@@ -670,26 +671,42 @@ function renderHeader(){
 }
 function markTabs(){
  [...$('tabs').children].forEach(b=>{b.setAttribute('aria-selected',b.dataset.t===tab);
-  const base={here:'Here',notes:'Casebook',sus:'Suspects',crew:'Crew',arrest:'Arrest'}[b.dataset.t];
+  const base={here:'Here',notes:'Case',sus:'Suspects',journal:'Notes',crew:'Crew',arrest:'Arrest'}[b.dataset.t];
   let badge='';if(b.dataset.t==='arrest'&&G&&G.war&&!G.war.signs.includes(myPeer()||'me'))badge='<span class="badge">!</span>';
   b.innerHTML=base+badge;});
 }
-$('tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;tab=b.dataset.t;renderPanel();};
+$('tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;tab=b.dataset.t;renderPanel(true);};
 
 function asked(s,q){return !!(G&&G.asked[s]&&G.asked[s].includes(q));}
 function curRoom(){return (typeof st!=='undefined'&&st)?STAIRS[plev].id:roomAt(pos.x,pos.y);}
 
-function renderPanel(){
+function renderPanel(force){
  markTabs();const el=$('pbody');
+ const ae=document.activeElement;if(!force&&ae&&el.contains(ae)&&/^(TEXTAREA|INPUT)$/.test(ae.tagName))return;
  if(!G||!C){el.innerHTML=`<p class="note">${code?'Waiting for the crew to send the case file…':'Board the ship to begin.'}</p>`;return;}
  const r=curRoom();
  if(tab==='here')el.innerHTML=hereHTML(r);
  else if(tab==='notes')el.innerHTML=notesHTML();
  else if(tab==='sus')el.innerHTML=susHTML();
  else if(tab==='crew')el.innerHTML=crewHTML();
+ else if(tab==='journal')el.innerHTML=journalHTML();
  else el.innerHTML=arrestHTML();
  wirePanel();
 }
+let heard=[];
+function notesKey(){return 'dc-notes-'+(code||'solo')+'-'+(C?C.seed:0);}
+function journalHTML(){
+ let mine='';try{mine=localStorage.getItem(notesKey())||'';}catch(e){}
+ let h=`<div><h2>Notes</h2><p class="sub">Your own notes, plus everything your crew has found and heard so far.</p></div>
+ <label class="f" for="mynotes">Your notes (kept on this device)<textarea id="mynotes" rows="6" placeholder="Hunches, contradictions, who to question next\u2026" style="width:100%;background:var(--sea);border:1px solid var(--line);border-radius:3px;padding:8px 10px;font-family:var(--type);font-size:.88rem;color:var(--paper);resize:vertical">${esc(mine)}</textarea></label>`;
+ const ev=C.objs.filter(o=>o.kind==='body'||G.ex.includes(o.id));
+ h+=`<h3>Evidence (${ev.length})</h3><div class="list">${ev.map(o=>`<div class="item"><div class="row"><div class="grow name">${esc(o.label)}</div><span class="tag ${o.w?'weapon':'clue'}">${esc(RN(o.room))} \u00b7 ${esc(LEVELN[roomLevel(o.room)])}</span></div><div class="quote">${esc(o.text)}</div></div>`).join('')}</div>`;
+ const talks=C.sus.filter(s=>G.asked[s.i]&&G.asked[s.i].length);
+ h+=`<h3>Conversations</h3>`;
+ if(!talks.length)h+=`<p class="note">Nobody has been questioned yet.</p>`;
+ talks.forEach(s=>{const qs=G.asked[s.i].slice().sort((a,b)=>a-b);h+=`<div class="item"><div class="row"><div class="mono">${esc(s.short.split(' ').pop()[0])}</div><div class="grow"><div class="name">${esc(s.name)}</div><div class="role">${esc(s.role)} \u00b7 ${esc(s.trait.obs)}</div></div></div>${qs.map(q=>`<div><div class="note" style="color:var(--lamp)">${esc(QS[q])}</div><div class="quote">${esc(C.answers[s.i][q])}</div></div>`).join('')}</div>`;});
+ if(heard.length)h+=`<h3>Overheard from crew and passengers</h3><div class="list">${heard.map(x=>`<div class="quote">${esc(x.name)}: \u201c${esc(x.text)}\u201d</div>`).join('')}</div>`;
+ return h;}
 function hereHTML(r){
  const play=G.phase==='play';
  if(!r)return '';
@@ -769,6 +786,7 @@ function wirePanel(){
   else if(a==='war')send({t:'war',s:+$('as').value,w:$('aw').value,r:$('ar').value});
   else send({t:a});
  });
+ const mn=$('mynotes');if(mn)mn.oninput=()=>{try{localStorage.setItem(notesKey(),mn.value.slice(0,5000));}catch(e){}};
  const f=$('chatf');if(f)f.onsubmit=e=>{e.preventDefault();const t=$('chatin').value.trim();if(!t||!room)return;room.emit('chat',{n:me.name,t,c:me.color}).catch(()=>{});$('chatin').value='';};
 }
 
@@ -1334,7 +1352,7 @@ function stairOptions(){const r=curRoom();if(!r||!String(r).startsWith('stairs')
 function stairChoice(){if(st)return null;const o=stairOptions();if(o.length<2)return o[0]||null;return pos.x<STAIR_XM?o.find(q=>q[0]==='down'):o.find(q=>q[0]==='up');}
 function changeLevel(nl){if(nl<0||nl>2||nl===plev)return;st=null;const f=$('fade');f.hidden=false;requestAnimationFrame(()=>{f.style.opacity='1';});[0,1,2,3,4,5].forEach(i=>setTimeout(()=>footstep(false),i*150));
  setTimeout(()=>{plev=nl;pos.x=Math.min(SH+18.6,Math.max(SH+16.4,pos.x));pos.y=4.55;path=[];if(has3D&&renderer)setLevelLights(plev);lastRoom=null;lastSent='';renderPanel();f.style.opacity='0';setTimeout(()=>{f.hidden=true;},400);},420);}
-let sayT=null;function sayLine(e){wah(e.i);voiceWho=100+e.i;const t=e.lines[Math.floor(Math.random()*e.lines.length)];const el=$('say');el.textContent=`${e.name}: \u201c${t}\u201d`;el.hidden=false;clearTimeout(sayT);sayT=setTimeout(()=>{el.hidden=true;},5200);}
+let sayT=null;function sayLine(e){wah(e.i);voiceWho=100+e.i;const t=e.lines[Math.floor(Math.random()*e.lines.length)];if(!heard.some(x=>x.name===e.name&&x.text===t)){heard.push({name:e.name,text:t});if(heard.length>40)heard.shift();}const el=$('say');el.textContent=`${e.name}: \u201c${t}\u201d`;el.hidden=false;clearTimeout(sayT);sayT=setTimeout(()=>{el.hidden=true;},5200);}
 function promptText(){
  if(!G||G.phase!=='play')return '';const r=curRoom();
  if(searchT)return `Searching the ${RN(searchT.r)}…`;
@@ -1356,7 +1374,9 @@ function releaseLook(){if(document.pointerLockElement===gl){try{document.exitPoi
 // ---------- look & move input ----------
 let joy=null,look=null,drag=null;
 function tryLock(){if(isTouch||document.pointerLockElement===gl)return;try{const p=gl.requestPointerLock();if(p&&p.catch)p.catch(()=>{});}catch(e){}}
-gl.addEventListener('pointerdown',e=>{
+gl.addEventListener('contextmenu',e=>e.preventDefault());
+document.addEventListener('mousedown',e=>{if(e.button===2&&document.pointerLockElement===gl){e.preventDefault();releaseLook();}},true);
+gl.addEventListener('pointerdown',e=>{if(e.button===2){releaseLook();return;}
  if(e.pointerType==='touch'){const b=gl.getBoundingClientRect();const lx=e.clientX-b.left,ly=e.clientY-b.top;gl.setPointerCapture(e.pointerId);
   if(lx<b.width*.45&&!joy){joy={id:e.pointerId,ox:lx,oy:ly,dx:0,dy:0};const j=$('joy');j.hidden=false;j.style.left=lx-55+'px';j.style.top=ly-55+'px';$('knob').style.transform='translate(0,0)';}
   else if(!look)look={id:e.pointerId,x:e.clientX,y:e.clientY};return;}
