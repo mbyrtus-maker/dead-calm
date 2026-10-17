@@ -914,7 +914,7 @@ function buildExterior(plank){
   const lampP=d.id==='stern'?[[SH-1.2,3.2],[SH-1.2,10.8]]:[[SH+37.5,3],[SH+37.5,11]];
   lampP.forEach(([a,b])=>{box(.08,2.4,.08,'#1a1a1a',a,b,0);const gl2=new THREE.Mesh(new THREE.SphereGeometry(.14,12,8),new THREE.MeshBasicMaterial({color:'#ffe0a0'}));gl2.position.set(a*T,2.45,b*T);scene.add(gl2);halo(gl2.position,1.3);const l=new THREE.PointLight('#ffd08a',.7,12,1.6);l.position.copy(gl2.position);scene.add(l);LLIGHTS[1].push(l);});});
  // stern loungers and a life ring; bow capstan, rope, bell
- [[2.6,3.4],[2.2,5.2],[2.2,9],[2.6,10.8]].forEach(([a,b],i)=>{const g=new THREE.Group();const seat=new THREE.Mesh(new THREE.BoxGeometry(1.5,.08,.62),lam('#8a6a42'));seat.position.y=.35;g.add(seat);const back=new THREE.Mesh(new THREE.BoxGeometry(.7,.08,.62),lam('#8a6a42'));back.position.set(-.85,.6,0);back.rotation.z=-.8;g.add(back);const cushion=new THREE.Mesh(new THREE.BoxGeometry(1.4,.06,.56),lam(i%2?'#3a5a7a':'#7a2a2a'));cushion.position.y=.42;g.add(cushion);[[-.6,-.25],[.6,-.25],[-.6,.25],[.6,.25]].forEach(([u,v])=>{const l=new THREE.Mesh(new THREE.BoxGeometry(.05,.35,.05),lam('#5a4026'));l.position.set(u,.175,v);g.add(l);});g.position.set(a*T,0,b*T);g.rotation.y=Math.PI+(b<7?.2:-.2);scene.add(g);});
+ [[2.6,3.4],[2.2,5.2],[2.2,9],[2.6,10.8]].forEach(([a,b],i)=>{const g=new THREE.Group();const seat=new THREE.Mesh(new THREE.BoxGeometry(1.5,.08,.62),propMat('#8a6a42','wood'));seat.position.y=.35;g.add(seat);const back=new THREE.Mesh(new THREE.BoxGeometry(.7,.08,.62),propMat('#8a6a42','wood'));back.position.set(-.85,.6,0);back.rotation.z=-.8;g.add(back);const cushion=new THREE.Mesh(new THREE.BoxGeometry(1.4,.06,.56),propMat(i%2?'#3a5a7a':'#7a2a2a','cloth'));cushion.position.y=.42;g.add(cushion);[[-.6,-.25],[.6,-.25],[-.6,.25],[.6,.25]].forEach(([u,v])=>{const l=new THREE.Mesh(new THREE.BoxGeometry(.05,.35,.05),lam('#5a4026'));l.position.set(u,.175,v);g.add(l);});g.position.set(a*T,0,b*T);g.rotation.y=Math.PI+(b<7?.2:-.2);scene.add(g);});
  const ring=new THREE.Mesh(new THREE.TorusGeometry(.3,.07,8,20),lam('#e8501e'));ring.position.set(1.15*T,.85,7*T);ring.rotation.y=Math.PI/2;scene.add(ring);
  cyl(.35,.42,.7,'#2a2a2a',SH+40,7,0);cyl(.2,.2,.15,'#c9a24a',SH+40,7,.7);
  const rope=new THREE.Mesh(new THREE.TorusGeometry(.35,.07,8,24),lam('#b8a070'));rope.rotation.x=Math.PI/2;rope.position.set((SH+38.2)*T,.07,4.5*T);scene.add(rope);
@@ -1108,7 +1108,7 @@ function buildPropsM(l){
  const has=id=>roomById[id]&&roomById[id].level===l,midx=r=>(r.x0+r.x1+1)/2;let r;
  const plateH=(fd('Table_RoundSmall')||{top:.66}).top;
  if(has('laundry')){r=roomById.laundry;for(let i=0;i<4;i++)FB('Bathroom_WashingMachine',r,r.x0+.4+i*.45);FB('Kitchen_Sink',r,r.x1+.6);FB('Trashcan_Small1',r,r.x0+2.6,.05);
-  for(let i=0;i<4;i++){const s=new THREE.Mesh(new THREE.PlaneGeometry(1.8,1.3),new THREE.MeshLambertMaterial({color:'#efece4',side:THREE.DoubleSide}));s.position.set((r.x0+1.2+i*1.5)*T,2.1,inz(r,1.9)*T);add3(s);}box((r.x1-r.x0+1)*T*.9,.02,.02,'#888',midx(r),inz(r,1.9),2.8);}
+  for(let i=0;i<4;i++){const s=new THREE.Mesh(new THREE.PlaneGeometry(1.8,1.3),SHEET||(SHEET=(()=>{const m=propMat('#efece4','cloth').clone();m.side=THREE.DoubleSide;return m;})()));s.position.set((r.x0+1.2+i*1.5)*T,2.1,inz(r,1.9)*T);add3(s);}box((r.x1-r.x0+1)*T*.9,.02,.02,'#888',midx(r),inz(r,1.9),2.8);}
  if(has('crew')){r=roomById.crew;tableSet('Table_RoundSmall','Chair_1',r.x0+1.2,inz(r,1.05),3,Math.PI/3);tableSet('Table_RoundSmall','Chair_1',r.x0+3.6,inz(r,1.05),3,0);FB('Kitchen_CabinetSmall',r,r.x1+.6);cyl(.2,.2,.5,'#b87333',r.x1+.6,inz(r,.35),.55);}
  if(has('crewq')){r=roomById.crewq;for(let i=0;i<3;i++)FB('Bed_Bunk',r,r.x0+.7+i*2.3);FB('NightStand_1',r,r.x0+1.75);FB('NightStand_1',r,r.x0+4.05);}
  if(has('galley')){r=roomById.galley;let x=r.x0-.15;['Kitchen_3Drawers','Kitchen_Oven_Large','Kitchen_Oven_Large','Kitchen_Cabinet1','Kitchen_Sink','Kitchen_Sink','Kitchen_Cabinet1','Kitchen_3Drawers','Kitchen_CabinetSmall'].forEach(n=>{const d=fd(n);if(!d)return;const w=d.maxX-d.minX;FB(n,r,x+w/2);x+=w+.01;});
@@ -1268,8 +1268,57 @@ function label(text,{size=44,color='#f1d9a0',bg='rgba(8,23,32,.78)',h=.34}={}){
 function signPlane(text){const c=document.createElement('canvas'),x=c.getContext('2d');const f=`64px Limelight, Georgia, serif`;x.font=f;c.width=Math.ceil(x.measureText(text).width+60);c.height=96;x.font=f;x.fillStyle='#1a120a';x.fillRect(0,0,c.width,c.height);x.strokeStyle='#c9a24a';x.lineWidth=5;x.strokeRect(4,4,c.width-8,c.height-8);x.fillStyle='#f1d9a0';x.textBaseline='middle';x.fillText(text,30,52);
  const t=new THREE.CanvasTexture(c);t.anisotropy=4;const hgt=.5,wid=Math.min(T*1.9,c.width/c.height*hgt);return new THREE.Mesh(new THREE.PlaneGeometry(wid,hgt),new THREE.MeshBasicMaterial({map:t}));}
 const lam=c=>new THREE.MeshLambertMaterial({color:c});
-function box(w,h,d,c,tx,ty,y0,parent){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),typeof c==='object'?c:lam(c));m.position.set(tx*T,(y0||0)+h/2,ty*T);(parent||TG||scene).add(m);return m;}
-function cyl(rt,rb,h,c,tx,ty,y0){const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,20),lam(c));m.position.set(tx*T,(y0||0)+h/2,ty*T);(TG||scene).add(m);return m;}
+// ---------- textured materials for hand-built props ----------
+const PCLS={'#4a2e1a':'wood','#3b2718':'wood','#5a2e1c':'wood','#8a5a2b':'wood','#5a3a22':'leather','#3a2a1a':'wood','#3a2616':'wood','#4a3020':'wood','#24160c':'wood','#3e2a18':'wood','#6b4428':'wood','#8a6a42':'wood','#5a4026':'wood',
+ '#6b4d2b':'crate','#7a5a34':'crate','#3a2a20':'leather','#6b2a24':'leather',
+ '#c9a24a':'brass','#8a6a32':'brass','#b87333':'brass',
+ '#2a2a2e':'metal','#2a2a2a':'metal','#141414':'metal','#1a1a1a':'metal','#7d8a8d':'metal','#5b5f5c':'metal','#56606a':'metal','#556066':'metal','#3a2e28':'metal','#2b333a':'metal','#c8c8c0':'metal','#151515':'cloth',
+ '#121212':'lacquer','#0e0e0e':'lacquer',
+ '#e6e1d4':'paint','#a8321e':'paint','#ece6d8':'paint',
+ '#f3efe6':'cloth','#f0ece2':'cloth','#e8e4dc':'cloth','#e8e2d0':'cloth','#d8d2c2':'cloth','#efece4':'cloth','#7a2a2a':'cloth','#3a5a7a':'cloth',
+ '#d8c8a0':'paper','#c8b890':'burlap','#1e5a2e':'felt'};
+const PTILE={wood:1.2,crate:0,metal:1.6,brass:1,lacquer:2,paint:2,cloth:.6,paper:1,burlap:.5,felt:.8,leather:.8};
+const PTEX={};
+function ptex(cls){if(PTEX[cls])return PTEX[cls];const S=cls==='crate'?256:128;const c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d');
+ const noise=(a,lo)=>{const d=x.getImageData(0,0,S,S),p=d.data;for(let i=0;i<p.length;i+=4){const n=(Math.random()-.5)*a;p[i]=Math.max(lo||0,Math.min(255,p[i]+n));p[i+1]=Math.max(lo||0,Math.min(255,p[i+1]+n));p[i+2]=Math.max(lo||0,Math.min(255,p[i+2]+n));}x.putImageData(d,0,0);};
+ const base=v=>{x.fillStyle=`rgb(${v},${v},${v})`;x.fillRect(0,0,S,S);};
+ if(cls==='wood'||cls==='crate'){base(232);
+  const grain=(x0,y0,w,h)=>{for(let k=0;k<w/1.6;k++){const xx=x0+k*1.6+Math.random();x.strokeStyle=`rgba(60,40,20,${.06+Math.random()*.14})`;x.lineWidth=.6+Math.random()*1.2;x.beginPath();for(let s=0;s<=h;s+=4){const px=xx+Math.sin((y0+s)*.05+k)*1.5;s?x.lineTo(px,y0+s):x.moveTo(px,y0);}x.stroke();}};
+  if(cls==='wood')grain(0,0,S,S);
+  else{const n=5,bw=S/n;for(let i=0;i<n;i++){x.save();x.translate(0,i*bw);x.rotate(0);x.restore();}
+   for(let i=0;i<n;i++){x.fillStyle=`rgb(${220+Math.random()*25|0},${220+Math.random()*25|0},${215+Math.random()*25|0})`;x.fillRect(0,i*bw,S,bw);for(let k=0;k<S/2;k++){x.strokeStyle=`rgba(60,40,20,${.05+Math.random()*.1})`;x.lineWidth=.8;const yy=i*bw+Math.random()*bw;x.beginPath();x.moveTo(0,yy);x.lineTo(S,yy+Math.random()*3-1.5);x.stroke();}x.fillStyle='rgba(30,20,10,.75)';x.fillRect(0,i*bw+bw-3,S,3);}
+   x.strokeStyle='rgba(40,25,10,.8)';x.lineWidth=18;x.strokeRect(9,9,S-18,S-18);x.fillStyle='rgba(255,240,220,.2)';x.fillRect(18,18,S-36,3);
+   x.lineWidth=14;x.beginPath();x.moveTo(18,18);x.lineTo(S-18,S-18);x.stroke();
+   x.fillStyle='rgba(30,30,30,.9)';[[14,14],[S-14,14],[14,S-14],[S-14,S-14]].forEach(([a,b])=>{x.beginPath();x.arc(a,b,3,0,7);x.fill();});}
+  noise(14);}
+ else if(cls==='metal'){base(225);for(let i=0;i<S;i++){x.fillStyle=`rgba(${Math.random()<.5?0:255},${0},${0},0)`;x.strokeStyle=`rgba(0,0,0,${Math.random()*.06})`;x.beginPath();x.moveTo(0,i);x.lineTo(S,i+Math.random()*2);x.stroke();}
+  x.strokeStyle='rgba(0,0,0,.22)';x.lineWidth=2;x.strokeRect(1,1,S-2,S-2);x.fillStyle='rgba(255,255,255,.35)';for(let i=8;i<S;i+=24){[[6,i],[S-6,i]].forEach(([a,b])=>{x.beginPath();x.arc(a,b,2.2,0,7);x.fill();});}
+  for(let k=0;k<6;k++){const cx=Math.random()*S,cy=Math.random()*S;const g=x.createRadialGradient(cx,cy,2,cx,cy,30);g.addColorStop(0,'rgba(120,70,40,.12)');g.addColorStop(1,'rgba(120,70,40,0)');x.fillStyle=g;x.fillRect(0,0,S,S);}noise(18);}
+ else if(cls==='brass'){base(240);for(let k=0;k<8;k++){const g=x.createLinearGradient(0,Math.random()*S,S,Math.random()*S);g.addColorStop(0,'rgba(255,255,255,0)');g.addColorStop(.5,'rgba(255,255,255,.18)');g.addColorStop(1,'rgba(0,0,0,.08)');x.fillStyle=g;x.fillRect(0,0,S,S);}noise(10);}
+ else if(cls==='lacquer'){base(235);noise(6);}
+ else if(cls==='paint'){base(238);for(let k=0;k<10;k++){x.fillStyle=`rgba(0,0,0,${Math.random()*.04})`;x.fillRect(Math.random()*S,0,2+Math.random()*4,S);}x.fillStyle='rgba(0,0,0,.06)';x.fillRect(0,S/2,S,1);noise(10);}
+ else if(cls==='cloth'||cls==='burlap'||cls==='felt'){base(cls==='burlap'?215:232);const st=cls==='burlap'?6:3;
+  if(cls!=='felt')for(let i=0;i<S;i+=st){x.fillStyle=`rgba(0,0,0,${cls==='burlap'?.18:.07})`;x.fillRect(i,0,1,S);x.fillRect(0,i,S,1);x.fillStyle='rgba(255,255,255,.08)';x.fillRect(i+1,0,1,S);}
+  noise(cls==='felt'?26:16);if(cls!=='felt'){for(let k=0;k<3;k++){x.strokeStyle='rgba(0,0,0,.025)';x.lineWidth=10;x.beginPath();x.moveTo(Math.random()*S,0);x.bezierCurveTo(Math.random()*S,S/3,Math.random()*S,S*2/3,Math.random()*S,S);x.stroke();}}}
+ else if(cls==='paper'){base(242);for(let i=10;i<S;i+=12){x.fillStyle='rgba(60,90,140,.12)';x.fillRect(6,i,S-12,1);}x.strokeStyle='rgba(80,40,20,.25)';x.lineWidth=1;x.beginPath();x.moveTo(20,40);x.bezierCurveTo(60,20,90,90,110,60);x.stroke();noise(10);}
+ else if(cls==='leather'){base(215);for(let k=0;k<60;k++){x.fillStyle=`rgba(${Math.random()<.5?0:255},${Math.random()<.5?0:255},${Math.random()<.5?0:255},.04)`;x.beginPath();x.arc(Math.random()*S,Math.random()*S,3+Math.random()*12,0,7);x.fill();}x.strokeStyle='rgba(0,0,0,.18)';x.setLineDash([3,3]);x.strokeRect(5,5,S-10,S-10);noise(20);}
+ const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=4;PTEX[cls]=t;return t;}
+const PMATS={};
+function propCls(c,cls){if(cls)return cls;c=String(c).toLowerCase();if(PCLS[c])return PCLS[c];const col=new THREE.Color(c),hsl={};col.getHSL(hsl);
+ if(hsl.s<.14)return hsl.l>.7?'paint':'metal';if(hsl.h>.1&&hsl.h<.16&&hsl.s>.4&&hsl.l>.3)return 'brass';if(hsl.h<.12&&hsl.l<.45)return 'wood';return hsl.l>.7?'cloth':'leather';}
+function propMat(c,cls){cls=propCls(c,cls);const k=c+'|'+cls;if(PMATS[k])return PMATS[k];const t=ptex(cls);
+ const shine={wood:22,crate:6,metal:45,brass:95,lacquer:110,paint:30,cloth:3,paper:4,burlap:2,felt:2,leather:18}[cls];
+ const m=new THREE.MeshPhongMaterial({color:c,map:t,bumpMap:t,bumpScale:cls==='crate'||cls==='burlap'?.03:.012,shininess:shine,specular:cls==='brass'?'#7a5a20':cls==='metal'||cls==='lacquer'?'#555555':'#1e1a14'});
+ m.userData.cls=cls;PMATS[k]=m;return m;}
+function uvBox(g,w,h,d,tile){const uv=g.attributes.uv;if(!tile)return g;const dims=[[d,h],[d,h],[w,d],[w,d],[w,h],[w,h]];for(let f=0;f<6;f++)for(let k=0;k<4;k++){const i=f*4+k;uv.setXY(i,uv.getX(i)*dims[f][0]/tile,uv.getY(i)*dims[f][1]/tile);}uv.needsUpdate=true;return g;}
+function uvCyl(g,r,h,seg,tile){const uv=g.attributes.uv;if(!tile)return g;const side=(seg+1)*2,circ=Math.PI*2*r;for(let i=0;i<uv.count;i++){if(i<side)uv.setXY(i,uv.getX(i)*circ/tile,uv.getY(i)*h/tile);else uv.setXY(i,uv.getX(i)*2*r/tile,uv.getY(i)*2*r/tile);}uv.needsUpdate=true;return g;}
+function barrelGeo(r,h){const pts=[];for(let i=0;i<=10;i++){const t=i/10,y=t*h;pts.push(new THREE.Vector2(r*(.86+.14*Math.sin(Math.PI*t)),y));}pts.unshift(new THREE.Vector2(0,0));pts.push(new THREE.Vector2(0,h));const g=new THREE.LatheGeometry(pts,18);const uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*6,uv.getY(i)*1);return g;}
+function makeBarrel(r,h){const grp=new THREE.Group();const staves=new THREE.MeshPhongMaterial({color:'#7a4e2a',map:ptex('wood'),bumpMap:ptex('wood'),bumpScale:.02,shininess:15});
+ const body=new THREE.Mesh(barrelGeo(r,h),staves);grp.add(body);const hoop=propMat('#2a2a2a','metal');
+ [.12,.32,.68,.88].forEach(t=>{const rr=r*(.86+.14*Math.sin(Math.PI*t))+.008;const ho=new THREE.Mesh(new THREE.TorusGeometry(rr,.018,6,22),hoop);ho.rotation.x=Math.PI/2;ho.position.y=t*h;grp.add(ho);});
+ const lid=new THREE.Mesh(new THREE.CircleGeometry(r*.86,18),staves);lid.rotation.x=-Math.PI/2;lid.position.y=h+.001;grp.add(lid);return grp;}
+function box(w,h,d,c,tx,ty,y0,parent){const pm=typeof c==='object'?c:propMat(c);const m=new THREE.Mesh(typeof c==='object'?new THREE.BoxGeometry(w,h,d):uvBox(new THREE.BoxGeometry(w,h,d),w,h,d,PTILE[pm.userData.cls]),pm);m.position.set(tx*T,(y0||0)+h/2,ty*T);(parent||TG||scene).add(m);return m;}
+function cyl(rt,rb,h,c,tx,ty,y0){const pm=propMat(c);const m=new THREE.Mesh(uvCyl(new THREE.CylinderGeometry(rt,rb,h,20),Math.max(rt,rb),h,20,PTILE[pm.userData.cls]),pm);m.position.set(tx*T,(y0||0)+h/2,ty*T);(TG||scene).add(m);return m;}
 
 let TG=null;const LGROUP=[],LLIGHTS=[[],[],[]];const LH=WH+.4;const levelY=l=>(l-1)*LH;
 function add3(m){(TG||scene).add(m);return m;}
@@ -1316,7 +1365,7 @@ function buildLevel(l,books){
   const len=w.d==='h'?w.x1-w.x0:w.y1-w.y0;const inner=wallMat(len);const mats=[inner,inner,inner,inner,inner,inner];
   if(w.d==='h'&&w.row===0)mats[5]=ext;if(w.d==='h'&&w.row===H-1)mats[4]=ext;if(w.d==='v'&&w.col===SH)mats[1]=ext;if(w.d==='v'&&w.col===SH+35)mats[0]=ext;
   const wh=l<2?LH:WH;const m=new THREE.Mesh(new THREE.BoxGeometry(lx,wh,lz),mats);m.position.set(cx,wh/2,cz);add3(m);
-  [[.2,.1,'#24160c'],[.06,1.25,'#4a3020'],[.18,WH-.09,'#3e2a18']].forEach(([h,yc,c])=>{const b=new THREE.Mesh(new THREE.BoxGeometry(w.d==='h'?lx:lx+.07,h,w.d==='h'?lz+.07:lz),lam(c));b.position.set(cx,yc,cz);add3(b);});});
+  [[.2,.1,'#24160c'],[.06,1.25,'#4a3020'],[.18,WH-.09,'#3e2a18']].forEach(([h,yc,c])=>{const bw=w.d==='h'?lx:lx+.07,bd=w.d==='h'?lz+.07:lz;const b=new THREE.Mesh(uvBox(new THREE.BoxGeometry(bw,h,bd),bw,h,bd,1.2),propMat(c,'wood'));b.position.set(cx,yc,cz);add3(b);});});
  // doors
  const lintelM=phong(texSet().paper,1,(WH-2.5)/WH,{shininess:12,bumpScale:.06});lintelM.userData.off=[0,2.5/WH];
  ALLR.forEach(r=>{if(r.level!==l)return;const [dx,dy]=r.door;
@@ -1357,7 +1406,9 @@ function buildStairs(){
   if(l<2){[[XM,SX1,4],[SX0,XM,2.5]].forEach(([x0,x1,z])=>{const e=new THREE.Mesh(new THREE.BoxGeometry((x1-x0)*T,LH-WH+.02,.12),plaster);e.position.set((x0+x1)/2*T,levelY(l)+WH+(LH-WH)/2,z*T);scene.add(e);});const e2=new THREE.Mesh(new THREE.BoxGeometry(.12,LH-WH+.02,1.5*T),plaster);e2.position.set(XM*T,levelY(l)+WH+(LH-WH)/2,3.25*T);scene.add(e2);}}
  TG=LGROUP[0];makePalm(SH+18.5,3.3,.8);TG=LGROUP[2];makePalm(SH+16.5,3.25,1);TG=null;
 }
+let BOTTLE_G=null,BOTTLE_R=null,SHEET=null;
 function buildProps(l,books){
+ if(!BOTTLE_G){BOTTLE_G=new THREE.MeshPhongMaterial({color:'#1e3a1e',shininess:120,specular:'#88aa88'});BOTTLE_R=new THREE.MeshPhongMaterial({color:'#3a0e12',shininess:120,specular:'#aa8888'});}
  const back=r=>r.top?r.y0-.48:r.y1+1.48,bk=(r,d)=>back(r)+(r.top?d:-d),midx=r=>(r.x0+r.x1+1)/2;
  const has=id=>!(MDL.ready&&MODELED.has(id))&&roomById[id]&&roomById[id].level===l;let r;
  const shelfM=new THREE.MeshLambertMaterial({map:books}),dk=lam('#3b2718');
@@ -1365,13 +1416,13 @@ function buildProps(l,books){
  const bed=(r,x,c)=>{box(1.5,.55,2,c,x,bk(r,.3),0);box(1.5,.12,.5,'#f0ece2',x,bk(r,.1),.55);box(1.6,1.1,.1,'#4a2e1a',x,bk(r,-.2),0);};
  if(has('engine')){r=roomById.engine;for(let i=0;i<4;i++){const x=r.x0+.8+i*2;cyl(.55,.55,2.4,'#56606a',x,bk(r,.25),0);cyl(.12,.12,WH,'#8a6a32',x+.8,back(r),0);cyl(.2,.2,.3,'#8a6a32',x,bk(r,.25),2.4);}}
  if(has('boiler')){r=roomById.boiler;box(2.6,2.2,1.2,'#3a2e28',midx(r),bk(r,.3),0);const f=new THREE.Mesh(new THREE.PlaneGeometry(.8,.5),new THREE.MeshBasicMaterial({color:'#ff7a2a'}));f.position.set(midx(r)*T,.8,bk(r,.3)*T+(r.top?.61:-.61));if(!r.top)f.rotation.y=Math.PI;add3(f);halo(f.position,1.8,'#ff9a4a');plight(l,'#ff8a3a',1.2,8,f.position.x,1,f.position.z);box(.9,.5,.9,'#141414',r.x0+.6,bk(r,1.2),0);}
- if(has('laundry')){r=roomById.laundry;[r.x0+1,r.x0+3,r.x0+5].forEach(x=>{cyl(.4,.35,.8,'#c8c8c0',x,bk(r,.1),0);});for(let i=0;i<4;i++){const s=new THREE.Mesh(new THREE.PlaneGeometry(1.8,1.3),new THREE.MeshLambertMaterial({color:'#efece4',side:THREE.DoubleSide}));s.position.set((r.x0+1.2+i*1.5)*T,2.1,bk(r,1.6)*T);add3(s);}box((r.x1-r.x0+1)*T*.9,.02,.02,'#888',midx(r),bk(r,1.6),2.8);}
+ if(has('laundry')){r=roomById.laundry;[r.x0+1,r.x0+3,r.x0+5].forEach(x=>{cyl(.4,.35,.8,'#c8c8c0',x,bk(r,.1),0);});for(let i=0;i<4;i++){const s=new THREE.Mesh(new THREE.PlaneGeometry(1.8,1.3),SHEET||(SHEET=(()=>{const m=propMat('#efece4','cloth').clone();m.side=THREE.DoubleSide;return m;})()));s.position.set((r.x0+1.2+i*1.5)*T,2.1,bk(r,1.6)*T);add3(s);}box((r.x1-r.x0+1)*T*.9,.02,.02,'#888',midx(r),bk(r,1.6),2.8);}
  if(has('stores')){r=roomById.stores;for(let i=0;i<6;i++)box(.8,.8,.8,i%2?'#7a5a34':'#6b4d2b',r.x0+.5+i*1.1,bk(r,.1),0);for(let i=0;i<4;i++)cyl(.3,.3,.8,'#c8b890',r.x0+.6+i*1.4,bk(r,1),0);}
- if(has('cargo')){r=roomById.cargo;[[1.1],[.8],[1.3],[.7],[1.2],[.9],[1]].forEach(([s],i)=>box(s*T*.6,s*1.1,s*T*.6,i%2?'#7a5a34':'#6b4d2b',r.x0+.6+i*1.2,bk(r,.1),0));box(1.6,.9,.9,'#3a2a20',r.x0+1,bk(r,1.2),0);}
+ if(has('cargo')){r=roomById.cargo;[[r.x1-.3,inz(r,.5)],[r.x1-.85,inz(r,.45)],[r.x1-.55,inz(r,1)]].forEach(([x,z])=>{const ba=makeBarrel(.4,1);ba.position.set(x*T,0,z*T);add3(ba);});[[1.1],[.8],[1.3],[.7],[1.2],[.9],[1]].forEach(([s],i)=>box(s*T*.6,s*1.1,s*T*.6,i%2?'#7a5a34':'#6b4d2b',r.x0+.6+i*1.2,bk(r,.1),0));box(1.6,.9,.9,'#3a2a20',r.x0+1,bk(r,1.2),0);}
  if(has('crew')){r=roomById.crew;box(3.4,.75,1.4,'#6b4d2b',midx(r),bk(r,.9),0);cyl(.25,.25,.6,'#b87333',r.x0+.6,back(r),.75);}
  if(has('crewq')){r=roomById.crewq;for(let i=0;i<3;i++){const x=r.x0+.9+i*2.2;[.4,1.5].forEach(y=>{box(1.6,.25,.85,'#5b5f5c',x,back(r),y);box(1.6,.06,.85,'#d8d2c2',x,back(r),y+.26);});}}
- if(has('cellar')){r=roomById.cellar;for(let i=0;i<4;i++){const x=r.x0+1+i*2.3;box(2,2.2,.5,'#3a2616',x,back(r),0);for(let a=0;a<4;a++)for(let b=0;b<5;b++){const bt=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,.35,8),lam(b%2?'#1e3a1e':'#3a0e12'));bt.rotation.x=Math.PI/2;bt.position.set(x*T-.8+b*.4,.3+a*.5,bk(r,.15)*T);add3(bt);}}
-  for(let i=0;i<3;i++){const ba=new THREE.Mesh(new THREE.CylinderGeometry(.4,.4,1,14),lam('#6b4428'));ba.rotation.z=Math.PI/2;ba.position.set((r.x0+1.5+i*1.1)*T,.4,bk(r,2.8)*T);add3(ba);}}
+ if(has('cellar')){r=roomById.cellar;for(let i=0;i<4;i++){const x=r.x0+1+i*2.3;box(2,2.2,.5,'#3a2616',x,back(r),0);for(let a=0;a<4;a++)for(let b=0;b<5;b++){const bt=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,.35,8),b%2?BOTTLE_G:BOTTLE_R);bt.rotation.x=Math.PI/2;bt.position.set(x*T-.8+b*.4,.3+a*.5,bk(r,.15)*T);add3(bt);}}
+  for(let i=0;i<3;i++){const ba=makeBarrel(.42,1.05);ba.rotation.z=Math.PI/2;ba.position.set((r.x0+1.5+i*1.1)*T+.52,.42,bk(r,2.8)*T);add3(ba);}for(let i=0;i<2;i++){const ba=makeBarrel(.4,1);ba.position.set((r.x1-.2-i*.55)*T,0,bk(r,.6)*T);add3(ba);}}
  if(has('galley')){r=roomById.galley;box((r.x1-r.x0+1)*T*.9,.95,.8,'#7d8a8d',midx(r),back(r),0);box(1.2,1.1,.85,'#2a2a2a',r.x0+1,back(r),0);[0,1,2].forEach(i=>cyl(.18,.15,.25,'#b87333',r.x0+2+i*.5,back(r),.95));}
  if(has('dining')){r=roomById.dining;[r.x0+1.2,r.x0+3.5,r.x0+5.8].forEach(x=>{cyl(.75,.75,.06,'#f3efe6',x,bk(r,.5),.74);cyl(.08,.08,.74,'#3b2718',x,bk(r,.5),0);[[-.6,0],[.6,0]].forEach(([dx])=>{box(.4,.45,.4,'#6b2a24',x+dx/2,bk(r,.5),0);});});}
  if(has('purser')){r=roomById.purser;box(1.8,.8,.9,'#4a2e1a',midx(r),bk(r,.6),0);box(.9,1.8,.6,'#556066',r.x1+.6,back(r),0);box(.9,1.1,.8,'#2a2a2e',r.x0+.6,back(r),0);}
@@ -1385,11 +1436,11 @@ function buildProps(l,books){
  if(has('writing')){r=roomById.writing;for(let i=0;i<3;i++){box(1.2,.75,.6,'#4a2e1a',r.x0+.8+i*1.5,back(r),0);box(.4,.45,.4,'#6b2a24',r.x0+.8+i*1.5,bk(r,.5),0);}}
  if(has('captain')){r=roomById.captain;box(2,.8,1,'#4a2e1a',midx(r),bk(r,.8),0);box(3,.05,1.5,'#d8c8a0',midx(r),bk(r,.8),.8);shelf(r,r.x0+.8,2.4);}
  if(has('radio')){r=roomById.radio;box(2.6,1.2,.6,'#2a2a2e',midx(r),back(r),0);for(let i=0;i<5;i++){const d=new THREE.Mesh(new THREE.CircleGeometry(.08,14),new THREE.MeshBasicMaterial({color:i%2?'#ffd27a':'#7affb0'}));d.position.set((midx(r)-.5+i*.25)*T,1.0,bk(r,.16)*T+(r.top?.01:-.01));if(!r.top)d.rotation.y=Math.PI;add3(d);}}
- if(has('bridge')){r=roomById.bridge;box(5,1.05,.6,'#2b333a',midx(r),back(r),0);const wh=new THREE.Mesh(new THREE.TorusGeometry(.42,.05,8,24),lam('#8a5a2b'));wh.position.set(midx(r)*T,1.45,bk(r,.45)*T);add3(wh);box(.12,1.1,.12,'#8a5a2b',midx(r),bk(r,.45),0);cyl(.2,.25,1.2,'#c9a24a',midx(r)+1.4,bk(r,.8),0);}
+ if(has('bridge')){r=roomById.bridge;box(5,1.05,.6,'#2b333a',midx(r),back(r),0);const wh=new THREE.Mesh(new THREE.TorusGeometry(.42,.05,8,24),propMat('#8a5a2b'));wh.position.set(midx(r)*T,1.45,bk(r,.45)*T);add3(wh);box(.12,1.1,.12,'#8a5a2b',midx(r),bk(r,.45),0);cyl(.2,.25,1.2,'#c9a24a',midx(r)+1.4,bk(r,.8),0);}
  if(has('ballroom')){r=roomById.ballroom;box(2.2,1,1.4,'#0e0e0e',r.x0+1.4,bk(r,.6),0);box(5,.35,2.2,'#4a2e1a',r.x1-2,bk(r,.6),0);for(let i=0;i<4;i++)box(.1,1.2,.1,'#c9a24a',r.x1-3.6+i*1,bk(r,.6),.35);}
- if(has('gym')){r=roomById.gym;box(2.2,.3,.5,'#5a3a22',midx(r),bk(r,.4),0);cyl(.18,.18,.9,'#6b2a24',r.x1-.3,bk(r,1),1.2);for(let i=0;i<3;i++){const b=new THREE.Mesh(new THREE.SphereGeometry(.18,12,8),lam('#5a3a22'));b.position.set((r.x0+.6+i*.5)*T,.18,bk(r,.2)*T);add3(b);}}
+ if(has('gym')){r=roomById.gym;box(2.2,.3,.5,'#5a3a22',midx(r),bk(r,.4),0);cyl(.18,.18,.9,'#6b2a24',r.x1-.3,bk(r,1),1.2);for(let i=0;i<3;i++){const b=new THREE.Mesh(new THREE.SphereGeometry(.18,12,8),propMat('#5a3a22','leather'));b.position.set((r.x0+.6+i*.5)*T,.18,bk(r,.2)*T);add3(b);}}
  if(has('chapel')){r=roomById.chapel;for(let i=0;i<3;i++)[-1,1].forEach(s=>box(1.5,.8,.4,'#4a2e1a',midx(r)+s*.9,bk(r,1+i*.9),0));box(1.2,1,.6,'#e8e2d0',midx(r),back(r),0);box(.06,.6,.06,'#c9a24a',midx(r),back(r),1);box(.3,.06,.06,'#c9a24a',midx(r),back(r),1.42);}
- if(has('obs')){r=roomById.obs;const tel=new THREE.Mesh(new THREE.CylinderGeometry(.07,.12,1.4,12),lam('#c9a24a'));tel.position.set(midx(r)*T,1.5,bk(r,.2)*T);tel.rotation.x=r.top?.9:-.9;add3(tel);box(.08,1.2,.08,'#2a2a2a',midx(r),bk(r,.2),0);}
+ if(has('obs')){r=roomById.obs;const tel=new THREE.Mesh(new THREE.CylinderGeometry(.07,.12,1.4,12),propMat('#c9a24a'));tel.position.set(midx(r)*T,1.5,bk(r,.2)*T);tel.rotation.x=r.top?.9:-.9;add3(tel);box(.08,1.2,.08,'#2a2a2a',midx(r),bk(r,.2),0);}
 }
 function buildDecor(l){
  const LW=LV[l].walls,brass=new THREE.MeshPhongMaterial({color:'#c9a24a',shininess:70}),glow=new THREE.MeshBasicMaterial({color:'#ffd99a'});
