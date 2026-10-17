@@ -422,7 +422,7 @@ function genCase(seed){
  const ti=pick([1,2]);const mode=ti===1?'after':pick(['before','after']);
  const range=mode==='after'?[ti,ti+1]:[ti-1,ti];
  const ids=ROOMS.map(r=>r.id);
- const M=pick(ids);const B=pick(ids.filter(x=>x!==M&&x!=='infirmary'));
+ const M=pick(ids);const moved=M==='infirmary'||R()<.55;const B=moved?pick(ids.filter(x=>x!==M&&x!=='infirmary')):M;
  const avail=shuf(Object.keys(LEDGER).filter(x=>x!==M&&x!==B));
  const Lroom=avail[0],Rroom=avail[1],L2room=avail[2];
  const grouped=shuf([Hh,...order.slice(3)]);const G1=grouped.slice(0,2),G2=grouped.slice(2);
@@ -458,7 +458,7 @@ function genCase(seed){
  const objs=[];let oc=0;const used={};
  const add=(room,label,text,kind,extra)=>{objs.push({id:'o'+(oc++),room,label,text,kind,...extra});used[room]=(used[room]||0)+1;};
  const vitem=pick(VITEMS);
- add(B,'The body',`${victim.name}, ${victim.desc}, lies under a deck-chair blanket. Heel scuffs run across the floor from the door: the body was dragged here after death. A steward found it at a quarter to one.`,'body');
+ add(B,'The body','','body');const bodyObj=objs[objs.length-1];
  const cat=pick(Object.keys(WEAP));
  add('infirmary','Surgeon’s notes',`Notes on ${victim.short}: ${WOUND[cat]}. From the body’s temperature, death came at about ${lab(range[0])} or ${lab(range[1])}. I cannot narrow it further.`,'clue');
  add(M,'Signs of a struggle',`An overturned chair and a smashed tumbler. Under the table, a ${vitem} torn from ${victim.short}’s evening clothes.`,'clue');
@@ -469,6 +469,10 @@ function genCase(seed){
  const inCat=shuf(WEAP[cat]);const real={...inCat[0],cat},decoy={...inCat[1],cat};
  const oCats=shuf(Object.keys(WEAP).filter(c=>c!==cat));const others=oCats.map(c=>({...pick(WEAP[c]),cat:c}));
  const herOwner=liar!==Hh?liar:order[3];
+ const bloody=cat==='blunt'||cat==='blade';
+ bodyObj.text=moved
+  ?`${victim.name}, ${victim.desc}, lies under a deck-chair blanket. ${bloody?`For a wound like that there is hardly any blood here, only a few dried drops`:`The dark lividity has settled along the wrong side for the way the body is lying`}, and heel scuffs run across the floor from the door. ${cap(victim.short)} was not killed in this room: the body was moved here after death. A ${vitem} is missing from the evening clothes. A steward found the body at a quarter to one.`
+  :`${victim.name}, ${victim.desc}, lies where they fell. ${bloody?`Blood has pooled on the floor beneath the body`:`The lividity matches exactly how the body is lying`}, and there are no drag marks anywhere. ${cap(victim.short)} died in this very room. A ${vitem} is missing from the evening clothes. A steward found the body at a quarter to one.`;
  const wr=shuf(ids.filter(r=>r!==B&&r!==M));const realRoom=wr[0];const restRooms=shuf(ids.filter(r=>r!==B&&r!==realRoom));
  add(realRoom,real.name,`${real.name}. ${USED[cat](real.part)}, and ${sus[k].trait.trace}.`,'weapon',{w:1,real:1});
  add(restRooms[0],decoy.name,`${decoy.name}. A film of dust lies undisturbed on it. Nobody has handled this in days.`,'weapon',{w:1});
@@ -489,7 +493,7 @@ function genCase(seed){
   mode==='after'?`${sus[noiseW].short} heard the thud just as the ${lab(ti)} bell struck, which settles the surgeon’s two possible hours.`:`${sus[vw].short} saw ${victim.short} alive at ${lab(ti-1)}, so of the surgeon’s two hours only ${lab(ti)} remains.`,
   `At ${lab(ti)}, ${sus[Hh].short} was in the ${RN(HinG1?Lroom:L2room)} with ${sus[partner(HinG1?G1:G2)].short}, and both say so.`,
   `${sus[k].short} claimed to be in the ${RN(Lroom)} with ${list(G1.map(i=>sus[i].short))}, but neither of them saw ${sus[k].short} there, and the ${LEDGER[Lroom].label.toLowerCase()} lists only them.`,
-  `${cap(victim.short)} was killed in the ${RN(M)} and dragged to the ${RN(B)}.`,
+  moved?`The body was moved: ${bloody?'too little blood':'the misplaced lividity'} and the drag marks give it away. ${cap(victim.short)} was really killed in the ${RN(M)}, where the torn ${vitem} lay, and dragged to the ${RN(B)}.`:`${cap(victim.short)} was killed in the ${RN(M)}, right where the body was found.`,
   `Red herrings: ${sus[liar].short} lied about ${lab(S)} to hide a private errand. ${sus[lone].short} was alone at ${lab(ti)}, but the ${LEDGER[Rroom].label.toLowerCase()} in the ${RN(Rroom)} proves it.`,
  ];
  const XP=[[0,'Stoker',{coat:'#3a3a3a',hair:'#2a1a12',cap:'#222',mus:1}],[0,'Laundress',{coat:'#6a7a8a',hair:'#8a5a3a',f:1}],[0,'Deckhand',{coat:'#2a3a5a',hair:'#d8b880',cap:'#2a3a5a'}],[0,'Cabin boy',{coat:'#7a1a1a',hair:'#3a2a1a',cap:'#7a1a1a'}],
@@ -500,7 +504,7 @@ function genCase(seed){
  const R2=mulberry(seed^0x5bd1e995),pk2=a=>a[Math.floor(R2()*a.length)];
  const tilesOf=r=>{const t=[];for(let y=r.top?r.y0+1:r.y0;y<=(r.top?r.y1:r.y1-1);y++)for(let x=r.x0;x<=r.x1;x++)t.push([x+.5,y+.5]);return t;};
  sus.forEach(s=>{s.dwell0=25+R2()*55;s.route=[];let lv=roomLevel(s.now),last=s.now;for(let k=0;k<45;k++){const pool=ROOMS.filter(r=>r.id!==last&&r.id!==B&&(R2()<.68?r.level===lv:true));const r=pk2(pool.length?pool:ROOMS);s.route.push({room:r.id,pos:pk2(tilesOf(r)),dwell:50+R2()*80});last=r.id;lv=r.level;}});
- return {seed,ship,port,victim,sus,objs,answers,st,k,M,B,ti,cat,realId:objs.find(o=>o.real).id,sol,extras};
+ return {seed,ship,port,victim,sus,objs,answers,st,k,M,B,ti,cat,moved,realId:objs.find(o=>o.real).id,sol,extras};
 }
 
 // ---------- state ----------
@@ -1471,8 +1475,10 @@ function buildCase(){
    const v=makeActor({m:fem?'f_formal':'m_suit',col:fem?{Red:'#2a1a3a',LimeGreen:'#7a6a8a',Skin:'#cfc3b2'}:{Suit:'#1e1e26',Hair:'#8a8a84',Eyebrows:'#8a8a84',Skin:'#cfc3b2'}});
    const u=v.userData;u.shadow.visible=false;if(u.acts.Death){u.acts.Death.setLoop(THREE.LoopOnce,1);u.acts.Death.clampWhenFinished=true;u.play('Death');u.mixer.update(.3);u.mixer.update(u.acts.Death.getClip().duration);}u.dead=true;addDeadEyes(v);g.add(v);
    v.updateMatrixWorld(true);const hp=new THREE.Vector3();if(u.head)u.head.getWorldPosition(hp);
-   const pool=new THREE.Mesh(new THREE.CircleGeometry(.62,28),new THREE.MeshPhongMaterial({color:'#4a0505',shininess:90,specular:'#aa4444'}));pool.rotation.x=-Math.PI/2;pool.position.set(hp.x+.1,.012,hp.z);pool.scale.set(1,.8,1);g.add(pool);
-   const sm=new THREE.Mesh(new THREE.CircleGeometry(.22,16),pool.material);sm.rotation.x=-Math.PI/2;sm.position.set(hp.x-.5,.012,hp.z+.5);g.add(sm);
+   const bm=new THREE.MeshPhongMaterial({color:'#4a0505',shininess:90,specular:'#aa4444'}),bloody=C.cat==='blunt'||C.cat==='blade';
+   if(bloody&&!C.moved){const pool=new THREE.Mesh(new THREE.CircleGeometry(.62,28),bm);pool.rotation.x=-Math.PI/2;pool.position.set(hp.x+.1,.012,hp.z);pool.scale.set(1,.8,1);g.add(pool);const sm=new THREE.Mesh(new THREE.CircleGeometry(.22,16),bm);sm.rotation.x=-Math.PI/2;sm.position.set(hp.x-.5,.012,hp.z+.5);g.add(sm);}
+   if(C.moved){const sc=new THREE.MeshBasicMaterial({color:'#2a1a12',transparent:true,opacity:.45,depthWrite:false});[-.12,.12].forEach(o=>{const st=new THREE.Mesh(new THREE.PlaneGeometry(.07,2.6),sc);st.rotation.x=-Math.PI/2;st.position.set(o,.011,-1.6);g.add(st);});
+    if(bloody)for(let k=0;k<5;k++){const d=new THREE.Mesh(new THREE.CircleGeometry(.04+Math.random()*.04,10),bm);d.rotation.x=-Math.PI/2;d.position.set((Math.random()-.5)*.3,.012,-.5-k*.5);g.add(d);}}
    const glass=new THREE.Mesh(new THREE.CylinderGeometry(.04,.025,.12,10),new THREE.MeshPhongMaterial({color:'#cfe0e8',transparent:true,opacity:.55,shininess:100}));glass.rotation.z=Math.PI/2;glass.position.set(.6,.04,.3);g.add(glass);
    if(!fem){const hat=new THREE.Mesh(new THREE.CylinderGeometry(.11,.12,.1,16),lam('#151515'));hat.position.set(hp.x-.55,.05,hp.z-.45);g.add(hat);const brim=new THREE.Mesh(new THREE.CylinderGeometry(.19,.19,.012,20),lam('#151515'));brim.position.set(hp.x-.55,.006,hp.z-.45);g.add(brim);}
    g.rotation.y=.6;}
