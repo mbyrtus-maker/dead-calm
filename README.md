@@ -15,3 +15,6 @@ A first-person 3D murder mystery aboard a small cruise steamer. Every case is fr
 One player clicks **Board the ship** and shares the 4-digit case number from the header. Friends open the same page, enter the number under **Join a crew**, and everyone shares the clock, casebook and searches. Arrests need every investigator to sign the warrant.
 
 Co-op connects players directly browser-to-browser (WebRTC via the free PeerJS service), so the host must keep the game open. A few strict networks block direct connections; if joining fails, try another network.
+
+## Credits
+Character and furniture models: Ultimate Modular Men, Ultimate Modular Women and Ultimate House Interior packs by [Quaternius](https://quaternius.com) (CC0).
