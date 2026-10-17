@@ -515,7 +515,7 @@ let pos={x:24.5,y:6.5},path=[],keys={};
 let tab='here',talk=null,searchT=null,lastRoom=null,seenNotes=0;
 let lobby=null,room=null,net=false,code=null,chatLog=[];
 
-function newGame(d,ep){const seed=(Math.random()*2**31)|0;return {ep:ep||1,seed,diff:d,phase:'play',searched:[],ex:[],asked:{},marks:{},war:null,out:null,log:[]};}
+function newGame(d,ep){const seed=(Math.random()*2**31)|0;return {ep:ep||1,seed,diff:d,phase:'play',searched:[],ex:[],asked:{},marks:{},war:null,out:null,log:[],pause:{}};}
 function placeAtBody(){const b=C.objs.find(o=>o.kind==='body');if(!b)return;const r=roomById[b.room];if(!r)return;plev=r.level;let best=null,bd=1e9;
  for(let y=r.y0;y<=r.y1;y++)for(let x=r.x0;x<=r.x1;x++){const cx=x+.5,cy=y+.5,d=Math.hypot(cx-b.pos[0],cy-b.pos[1]);if(d<1.4)continue;const sc=Math.abs(d-1.8);if(sc<bd){bd=sc;best=[cx,cy];}}
  if(best){pos={x:best[0],y:best[1]};yaw=Math.atan2(-(b.pos[0]-best[0]),-(b.pos[1]-best[1]));pitch=-.35;}lastRoom=null;if(typeof renderer!=='undefined'&&renderer&&typeof setLevelLights==='function')setLevelLights(plev);}
@@ -539,6 +539,8 @@ function applyAct(a,peer){
  if(a.t==='search'&&ROOMS.some(r=>r.id===a.r)&&!G.searched.includes(a.r)){G.searched.push(a.r);log(`${who} searched the ${RN(a.r)}.`);}
  else if(a.t==='ex'&&C.objs.some(o=>o.id===a.o)&&!G.ex.includes(a.o)){G.ex.push(a.o);log(`${who} examined: ${C.objs.find(o=>o.id===a.o).label}.`);}
  else if(a.t==='ask'&&a.s>=0&&a.s<6&&a.q>=0&&a.q<6){const l=G.asked[a.s]||(G.asked[a.s]=[]);if(!l.includes(a.q)){l.push(a.q);log(`${who} questioned ${C.sus[a.s].short}.`);}}
+ else if(a.t==='hold'&&a.s>=0&&a.s<6){const P=G.pause||(G.pause={});const q=P[a.s]||(P[a.s]={acc:0,since:null,by:[]});const t=gameT();
+  if(a.on){if(!q.by.includes(peer))q.by.push(peer);if(q.since==null)q.since=t;}else{q.by=q.by.filter(x=>x!==peer);if(!q.by.length&&q.since!=null){q.acc+=t-q.since;q.since=null;}}}
  else if(a.t==='mark'&&a.s>=0&&a.s<6&&['','c','s'].includes(a.m)){G.marks[a.s]=a.m;}
  else if(a.t==='war'&&a.s>=0&&a.s<6&&ROOMS.some(r=>r.id===a.r)){G.war={s:a.s,w:typeof a.w==='string'?a.w:'',r:a.r,by:who,signs:[peer]};log(`${who} drafted a warrant for ${C.sus[a.s].short}.`);}
  else if(a.t==='sign'&&G.war&&!G.war.signs.includes(peer)){G.war.signs.push(peer);log(`${who} signed the warrant.`);}
@@ -549,7 +551,7 @@ function checkWarrant(){
  if(!G||!G.war||G.phase!=='play')return;
  const need=players().map(p=>p.peer);
  if(need.every(p=>G.war.signs.includes(p))){
-  const w=G.war;G.endT=Math.round(gameT());G.phase='over';G.out={k:w.s===C.k?'win':'wrong',s:w.s,w:w.w,r:w.r};
+  const w=G.war;G.endT=Math.round(gameT());G.phase='over';const okW=w.w===C.realId,okR=w.r===C.M;G.out={k:w.s!==C.k?'wrong':(okW&&okR?'win':'evidence'),s:w.s,w:w.w,r:w.r,okW,okR};
  }
 }
 function onSync(msg){
@@ -650,7 +652,11 @@ function renderEnd(){
  if(o.k==='win'){
   const wOk=o.w===realW.id,rOk=o.r===C.M;
   head=`<div class="verdict win">Case closed.</div>`;
-  body=`<p>${esc(k.name)} goes down the gangway in irons as the ship reaches ${esc(C.port)}. ${wOk&&rOk?'Weapon and murder room both correct: a flawless arrest.':'You named the right person.'+(wOk?'':` The weapon was the ${esc(realW.label.toLowerCase())}.`)+(rOk?'':` The murder happened in the ${esc(RN(C.M))}.`)}</p>`;
+  body=`<p>${esc(k.name)} goes down the gangway in irons as the ship reaches ${esc(C.port)}. The killer, the ${esc(realW.label.toLowerCase())} and the ${esc(RN(C.M))}: every charge stuck.</p>`;
+ }else if(o.k==='evidence'){
+  const bits=[];if(!o.okW)bits.push(`the weapon was the ${esc(realW.label.toLowerCase())}`);if(!o.okR)bits.push(`the murder happened in the ${esc(RN(C.M))}`);
+  head=`<div class="verdict lose">The charges didn\u2019t stick.</div>`;
+  body=`<p>You had the right person, but ${bits.join(' and ')}. With the evidence against them in tatters, the captain released ${esc(k.name)} before midnight. You were found at dawn.</p>`;
  }else if(o.k==='wrong'){
   head=`<div class="verdict lose">Wrong person.</div>`;
   body=`<p>The irons close on ${esc(C.sus[o.s].name)}. At four bells that night, while the ship slept, ${esc(k.name)} came for you with the ${esc(realW.label.toLowerCase())}. You were found at dawn.</p>`;
@@ -675,7 +681,7 @@ function renderHeader(){
  if(G&&lastPhase!==G.phase){lastPhase=G.phase;
   if(G.phase==='over'){const o=G.out||{k:'time'};try{document.exitPointerLock&&document.pointerLockElement&&document.exitPointerLock();}catch(e){}
    if(o.k==='win'){fanfare();renderEnd();}
-   else{$('view').classList.add('dead');$('murderwhy').textContent=o.k==='wrong'?`You arrested the wrong person. ${C.sus[C.k].short} came for you in the night.`:`Dawn came too late. ${C.sus[C.k].short} found you first.`;$('murdered').hidden=false;sting();const ep=G.ep;setTimeout(()=>{if(G&&G.ep===ep&&G.phase==='over')renderEnd();},3400);}}
+   else{$('view').classList.add('dead');$('murderwhy').textContent=o.k==='wrong'?`You arrested the wrong person. ${C.sus[C.k].short} came for you in the night.`:o.k==='evidence'?`Right suspect, wrong ${!o.okW&&!o.okR?'weapon and room':!o.okW?'weapon':'room'}. ${C.sus[C.k].short} was released, and came for you.`:`Dawn came too late. ${C.sus[C.k].short} found you first.`;$('murdered').hidden=false;sting();const ep=G.ep;setTimeout(()=>{if(G&&G.ep===ep&&G.phase==='over')renderEnd();},3400);}}
   else{$('view').classList.remove('dead');$('murdered').hidden=true;restoreMusic();}}
 }
 function markTabs(){
@@ -716,18 +722,8 @@ function journalHTML(){
  talks.forEach(s=>{const qs=G.asked[s.i].slice().sort((a,b)=>a-b);h+=`<div class="item"><div class="row"><div class="mono">${esc(s.short.split(' ').pop()[0])}</div><div class="grow"><div class="name">${esc(s.name)}</div><div class="role">${esc(s.role)} \u00b7 ${esc(s.trait.obs)}</div></div></div>${qs.map(q=>`<div><div class="note" style="color:var(--lamp)">${esc(QS[q])}</div><div class="quote">${esc(C.answers[s.i][q])}</div></div>`).join('')}</div>`;});
  if(heard.length)h+=`<h3>Overheard from crew and passengers</h3><div class="list">${heard.map(x=>`<div class="quote">${esc(x.name)}: \u201c${esc(x.text)}\u201d</div>`).join('')}</div>`;
  return h;}
-function hereHTML(r){
- const play=G.phase==='play';
- if(!r)return '';
- if(String(r).startsWith('stairs')){const o=stairOptions();return `<div><h2>Grand Staircase</h2><p class="sub">${esc(LEVELN[plev])}. ${esc(STAIRS[plev].desc)}</p></div><div class="row">${o.map(([d,l])=>`<button class="btn" data-lvl="${l}">Go ${d} to the ${esc(LEVELN[l])}</button>`).join('')}</div>${logHTML()}`;}
- if(deckById[r])return `<div><h2>${esc(deckById[r].name)}</h2><p class="sub">${esc(deckById[r].desc)}</p></div><p class="note">The sky turns toward dawn as your time runs out. Nothing to search out here.</p>${logHTML()}`;
- if(r==='passage')return `<div><h2>Main Passage</h2><p class="sub">A long carpeted corridor running the length of the ship. Doors open off both sides.</p></div><p class="note">Walk into a room to search it and question whoever is there.</p>${logHTML()}`;
- const R=roomById[r];const searched=G.searched.includes(r);
- updateLive();const here=C.sus.filter((s,i)=>LIVE[i]&&LIVE[i].l===plev&&(LIVE[i].room===r||(talk===i&&Math.hypot(LIVE[i].x-pos.x,LIVE[i].y-pos.y)<5)));
- const objs=C.objs.filter(o=>o.room===r&&(searched||o.kind==='body'));
- let h=`<div><h2>${esc(R.name)}</h2><p class="sub">${esc(R.desc)}</p></div>`;
- if(!searched)h+=`<div class="list"><button class="btn ghost" data-act="search" ${play?'':'disabled'}>Search this room</button><div class="prog" id="sprog" ${searchT?'':'hidden'}><i></i></div><div class="note">Searching takes a few seconds. Stay in the room.</div></div>`;
- if(here.length){h+=`<h3>People here</h3><div class="list">`;
+function peopleHTML(r,play){updateLive();const here=C.sus.filter((s,i)=>LIVE[i]&&LIVE[i].l===plev&&((r&&LIVE[i].room===r&&roomById[r])||(talk===i&&Math.hypot(LIVE[i].x-pos.x,LIVE[i].y-pos.y)<5)||Math.hypot(LIVE[i].x-pos.x,LIVE[i].y-pos.y)<1.6));
+ let h=''; if(here.length){h+=`<h3>People here</h3><div class="list">`;
   here.forEach(s=>{const open=talk===s.i;
    h+=`<div class="item"><div class="row"><div class="mono">${esc(s.short.split(' ').pop()[0])}</div><div class="grow"><div class="name">${esc(s.name)}</div><div class="role">${esc(s.role)}</div></div><button class="btn sm ${open?'ghost':''}" data-talk="${s.i}">${open?'Done':'Question'}</button></div>`;
    if(open){h+=`<div class="note">You notice: ${esc(s.trait.obs)}</div><div class="qs">`;
@@ -735,6 +731,18 @@ function hereHTML(r){
     h+=`</div>`;}
    h+=`</div>`;});
   h+=`</div>`;}
+ return h;}
+function hereHTML(r){
+ const play=G.phase==='play';
+ if(!r)return '';
+ if(String(r).startsWith('stairs')){const o=stairOptions();return `<div><h2>Grand Staircase</h2><p class="sub">${esc(LEVELN[plev])}. ${esc(STAIRS[plev].desc)}</p></div><div class="row">${o.map(([d,l])=>`<button class="btn" data-lvl="${l}">Go ${d} to the ${esc(LEVELN[l])}</button>`).join('')}</div>${peopleHTML(r,play)}${logHTML()}`;}
+ if(deckById[r])return `<div><h2>${esc(deckById[r].name)}</h2><p class="sub">${esc(deckById[r].desc)}</p></div><p class="note">The sky turns toward dawn as your time runs out. Nothing to search out here.</p>${peopleHTML(r,play)}${logHTML()}`;
+ if(r==='passage')return `<div><h2>Main Passage</h2><p class="sub">A long carpeted corridor running the length of the ship. Doors open off both sides.</p></div><p class="note">Walk into a room to search it, or stop anyone you pass in the corridor to question them.</p>${peopleHTML(r,play)}${logHTML()}`;
+ const R=roomById[r];const searched=G.searched.includes(r);
+ const objs=C.objs.filter(o=>o.room===r&&(searched||o.kind==='body'));
+ let h=`<div><h2>${esc(R.name)}</h2><p class="sub">${esc(R.desc)}</p></div>`;
+ if(!searched)h+=`<div class="list"><button class="btn ghost" data-act="search" ${play?'':'disabled'}>Search this room</button><div class="prog" id="sprog" ${searchT?'':'hidden'}><i></i></div><div class="note">Searching takes a few seconds. Stay in the room.</div></div>`;
+ h+=peopleHTML(r,play);
  const xs=(C.extras||[]).filter(e=>e.room===r);if(xs.length)h+=`<h3>Also here</h3><div class="list">${xs.map(e=>`<div class="row"><span class="grow">${esc(e.name)}</span><button class="btn ghost sm" data-npc="${e.i}">Chat</button></div>`).join('')}</div>`;
  if(objs.length){h+=`<h3>Found here</h3><div class="list">`;
   objs.forEach(o=>{const ex=G.ex.includes(o.id)||o.kind==='body';
@@ -776,14 +784,14 @@ function arrestHTML(){
   return h;}
  const ws=C.objs.filter(o=>o.w&&G.ex.includes(o.id));
  h+=`<label class="f" for="as">Suspect<select id="as">${C.sus.map(s=>`<option value="${s.i}">${esc(s.name)}</option>`).join('')}</select></label>`;
- h+=`<label class="f" for="aw">Weapon<select id="aw"><option value="">Not sure</option>${ws.map(o=>`<option value="${o.id}">${esc(o.label)}</option>`).join('')}</select></label>`;
+ h+=`<label class="f" for="aw">Weapon<select id="aw"><option value="">Choose a weapon\u2026</option>${ws.map(o=>`<option value="${o.id}">${esc(o.label)}</option>`).join('')}</select></label>`;
  h+=`<label class="f" for="ar">Where it happened<select id="ar">${ROOMS.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('')}</select></label>`;
- h+=`<button class="btn danger" data-act="war" ${play?'':'disabled'}>${players().length>1?'Draft warrant for the crew to sign':'Make the arrest'}</button><p class="note">Only weapons your crew has examined can be named.</p>`;
+ h+=`<button class="btn danger" data-act="war" ${play?'':'disabled'}>${players().length>1?'Draft warrant for the crew to sign':'Make the arrest'}</button><p class="note" id="awmsg">All three must be right: the killer, the weapon and the room. Only weapons your crew has examined can be named.</p>`;
  return h;
 }
 function wirePanel(){
  const el=$('pbody');
- el.querySelectorAll('[data-talk]').forEach(b=>b.onclick=()=>{const s=+b.dataset.talk;talk=talk===s?null:s;if(talk!=null)wah(s);renderPanel();});
+ el.querySelectorAll('[data-talk]').forEach(b=>b.onclick=()=>{const s=+b.dataset.talk;setTalk(talk===s?null:s);if(talk!=null)wah(s);renderPanel();});
  el.querySelectorAll('[data-ask]').forEach(b=>b.onclick=()=>{const [s,q]=b.dataset.ask.split(':').map(Number);wah(s);send({t:'ask',s,q});});
  el.querySelectorAll('[data-lvl]').forEach(b=>b.onclick=()=>changeLevel(+b.dataset.lvl));
  el.querySelectorAll('[data-npc]').forEach(b=>b.onclick=()=>{const e=C.extras.find(x=>x.i===+b.dataset.npc);if(e)sayLine(e);});
@@ -792,7 +800,7 @@ function wirePanel(){
  el.querySelectorAll('[data-act]').forEach(b=>b.onclick=()=>{
   const a=b.dataset.act;
   if(a==='search')startSearch();
-  else if(a==='war')send({t:'war',s:+$('as').value,w:$('aw').value,r:$('ar').value});
+  else if(a==='war'){if(!$('aw').value){$('aw').focus();const n=$('awmsg');if(n)n.textContent='Name the weapon. An arrest needs the right person, weapon and room.';return;}send({t:'war',s:+$('as').value,w:$('aw').value,r:$('ar').value});}
   else send({t:a});
  });
  const mn=$('mynotes');if(mn)mn.oninput=()=>{try{localStorage.setItem(notesKey(),mn.value.slice(0,5000));}catch(e){}};
@@ -1461,14 +1469,19 @@ function liveAt(s,t){const sg=s.segs;if(!sg||!sg.length)return {x:s.pos[0],y:s.p
 function liveSeg(z,f){if(z.k==='w'){const [x,y,,dx,dy]=evalPath(z.pts,z.L,f,false);return {x,y,l:z.l,h:levelY(z.l),room:roomAt(x,y,z.l),moving:true,dx,dy};}
  const [x,y,h,dx,dy]=evalPath(z.pts,z.L,f,true);const l=f<.5?z.from:z.to;return {x,y,l,h,room:STAIRS[l].id,moving:true,stairs:true,dx,dy};}
 function gameT(){if(!G)return 0;if(G.phase!=='play')return (G.endT||0);return Math.max(0,DUR[G.diff]-(deadline-Date.now())/1000);}
-function updateLive(){if(!C)return;const t=gameT();LIVE=C.sus.map(s=>liveAt(s,t));}
+function effT(i,t){const q=G&&G.pause&&G.pause[i];if(!q)return t;return q.since!=null?q.since-q.acc:t-q.acc;}
+function updateLive(){if(!C)return;const t=gameT();LIVE=C.sus.map((s,i)=>{const L=liveAt(s,effT(i,t));const q=G&&G.pause&&G.pause[i];if(q&&q.since!=null)L.moving=false;return L;});}
+let heldBy=null;
+function setTalk(i){if(i===talk)return;if(talk!=null)send({t:'hold',s:talk,on:0});talk=i;if(talk!=null)send({t:'hold',s:talk,on:1});}
+function checkHolds(){if(talk!=null&&LIVE[talk]){const L=LIVE[talk];if(L.l!==plev||Math.hypot(L.x-pos.x,L.y-pos.y)>4.5){setTalk(null);renderPanel();}}
+ if(G&&G.pause&&amHost()){const t=gameT();let ch=false;const ids=new Set(players().map(p=>p.peer).concat(['me',myPeer()||'me']));Object.values(G.pause).forEach(q=>{const nb=q.by.filter(x=>ids.has(x));if(nb.length!==q.by.length){q.by=nb;ch=true;}if(q.since!=null&&(!q.by.length||t-q.since>150)){q.acc+=t-q.since;q.since=null;q.by=[];ch=true;}});if(ch)broadcast();}}
 // ---------- interaction ----------
 let target=null;
 function fwd(){return [-Math.sin(yaw),-Math.cos(yaw)];}
 function findTarget(){
  if(!C||!G||G.phase!=='play')return null;const r=curRoom();const [fx,fy]=fwd();let best=null,bd=1e9;
- const test=(x,y,o)=>{const dx=x-pos.x,dy=y-pos.y,d=Math.hypot(dx,dy);if(d>1.8||d<.01)return;const dot=(dx*fx+dy*fy)/d;if(dot<.75)return;const sc=d*(2-dot);if(sc<bd){bd=sc;best=o;}};
- C.sus.forEach((s,i)=>{const L=LIVE[i];if(L&&L.l===plev&&!L.stairs&&(L.room===r||Math.hypot(L.x-pos.x,L.y-pos.y)<1.4))test(L.x,L.y,{kind:'sus',s});});
+ const test=(x,y,o,far,cone)=>{const dx=x-pos.x,dy=y-pos.y,d=Math.hypot(dx,dy);if(d>(far||1.8)||d<.01)return;const dot=(dx*fx+dy*fy)/d;if(dot<(cone||.75))return;const sc=d*(2-dot);if(sc<bd){bd=sc;best=o;}};
+ C.sus.forEach((s,i)=>{const L=LIVE[i];if(L&&L.l===plev&&Math.abs(L.h-stairH())<1.2)test(L.x,L.y,{kind:'sus',s},2.4,.6);});
  C.objs.forEach(o=>{if(o.room===r&&(o.kind==='body'||G.searched.includes(o.room)))test(o.pos[0],o.pos[1],{kind:'obj',o});});
  (C.extras||[]).forEach(e=>{if(e.room===r)test(e.pos[0],e.pos[1],{kind:'npc',e});});
  return best;}
@@ -1502,7 +1515,7 @@ function interact(){
  if(!G||G.phase!=='play')return;
  if(target&&target.kind==='npc'){sayLine(target.e);return;}
  if(!target){const sc=stairChoice();if(sc){changeLevel(sc[1]);return;}}
- if(target){if(target.kind==='sus'){talk=target.s.i;tab='here';wah(target.s.i);}else{const o=target.o;if(o.kind!=='body'&&!G.ex.includes(o.id))send({t:'ex',o:o.id});tab='here';}
+ if(target){if(target.kind==='sus'){setTalk(target.s.i);tab='here';wah(target.s.i);}else{const o=target.o;if(o.kind!=='body'&&!G.ex.includes(o.id))send({t:'ex',o:o.id});tab='here';}
   releaseLook();renderPanel();if(window.innerWidth<=920)$('pbody').scrollIntoView({behavior:'smooth',block:'start'});return;}
  startSearch();}
 function startSearch(){const r=curRoom();if(!G||G.phase!=='play'||!r||!roomById[r]||G.searched.includes(r)||searchT)return;searchT={r,t0:performance.now()};rustle(2.6);renderPanel();}
@@ -1585,7 +1598,7 @@ function step(now){
  pitch=Math.max(-1.2,Math.min(1.2,pitch));
  if(G){const rem=Math.max(0,Math.ceil((deadline-Date.now())/1000));const t=G.phase==='play'?`Dawn in ${Math.floor(rem/60)}:${String(rem%60).padStart(2,'0')}`:'Case over';
   if(t!==lastClock){lastClock=t;const c=$('clock');c.textContent=t;c.classList.toggle('warn',G.phase==='play'&&rem<120);}}
- updateLive();{const sig=LIVE.map(L=>(L.room||'')+L.l).join();if(sig!==liveSig){liveSig=sig;if(tab==='here'||tab==='sus')renderPanel();}}target=findTarget();const pt=promptText();if(pt!==lastPrompt){lastPrompt=pt;$('prompt').innerHTML=pt;$('prompt').hidden=!pt;$('actbtn').hidden=!(isTouch&&pt&&!searchT);$('actbtn').textContent=target?(target.kind==='obj'?'Examine':'Talk'):(stairChoice()&&!(curRoom()&&roomById[curRoom()]&&!G.searched.includes(curRoom()))?(stairChoice()[0]==='up'?'Up':'Down'):'Search');}
+ updateLive();checkHolds();{const sig=LIVE.map(L=>(L.room||'')+L.l+(L.l===plev&&Math.hypot(L.x-pos.x,L.y-pos.y)<1.6?'*':'')).join()+'|'+talk;if(sig!==liveSig){liveSig=sig;if(tab==='here'||tab==='sus')renderPanel();}}target=findTarget();const pt=promptText();if(pt!==lastPrompt){lastPrompt=pt;$('prompt').innerHTML=pt;$('prompt').hidden=!pt;$('actbtn').hidden=!(isTouch&&pt&&!searchT);$('actbtn').textContent=target?(target.kind==='obj'?'Examine':'Talk'):(stairChoice()&&!(curRoom()&&roomById[curRoom()]&&!G.searched.includes(curRoom()))?(stairChoice()[0]==='up'?'Up':'Down'):'Search');}
  if(has3D&&renderer){
   if(C&&builtSeed!==C.seed&&renderer)buildCase();
   if(moving)bobT+=dt*9;if(plev!==litLevel){litLevel=plev;setLevelLights(plev);}{const cr=curRoom();const all=!!st||(cr&&(deckById[cr]||String(cr).startsWith('stairs')));const key=all?'all':plev;if(key!==visKey){visKey=key;LGROUP.forEach((g,i)=>{g.visible=all||i===plev;});}}cam.position.set(pos.x*T,stairH()+EYE+Math.sin(bobT)*.035,pos.y*T);cam.rotation.set(pitch,yaw,0);
